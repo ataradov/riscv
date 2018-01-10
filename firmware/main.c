@@ -547,7 +547,20 @@ int main(void)
 {
   iputs("\n--- main ---\n");
 
-#if 0
+  test_basic_prints();
+  test_printf();
+  test_callbacks();
+  test_bubble_sort();
+  test_qsort();
+  test_hw_sw_div();
+  test_hw_sw_mul();
+  test_hw_sw_shift();
+
+  iputs("\nAll tests PASSED.\n");
+  iputs("*** halting ***\n");
+  halt();
+
+#if 1
   while (1)
   {
     *(volatile uint32_t *)0x00020000 = 0xaa;
@@ -561,19 +574,6 @@ int main(void)
       asm("nop");
   }
 #endif
-
-  test_basic_prints();
-  test_printf();
-  test_callbacks();
-  test_bubble_sort();
-  test_qsort();
-  test_hw_sw_div();
-  test_hw_sw_mul();
-  test_hw_sw_shift();
-
-  iputs("\nAll tests PASSED.\n");
-  iputs("*** halting ***\n");
-  halt();
 
   return 0;
 }

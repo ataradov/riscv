@@ -66,16 +66,16 @@ wire [3:0] dbe_byte_w =
 wire [3:0] dbe_half_w =
     daddr_i[1] ? 4'b1100 : 4'b0011;
 
-wire [3:0] dbe_w = 
+wire [3:0] dbe_w =
     (SIZE_BYTE == dsize_i) ? dbe_byte_w :
     (SIZE_HALF == dsize_i) ? dbe_half_w : 4'b1111;
 
-wire [7:0] rdata_byte_w = 
+wire [7:0] rdata_byte_w =
     (2'b00 == daddr_r) ? drdata_r[7:0] :
     (2'b01 == daddr_r) ? drdata_r[15:8] :
     (2'b10 == daddr_r) ? drdata_r[23:16] : drdata_r[31:24];
 
-wire [16:0] rdata_half_w = 
+wire [15:0] rdata_half_w =
     daddr_r[1] ? drdata_r[31:16] : drdata_r[15:0];
 
 wire [31:0] drdata_w =

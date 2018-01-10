@@ -33,6 +33,7 @@ module riscv_tb;
 
 //----------------------------------------------------------------------------
 integer     i, j, k, l, m, n;
+integer     cycles;
 
 reg         clk;
 reg         reset;
@@ -50,7 +51,9 @@ wire        drd_w;
 wire        dwr_w;
 
 //----------------------------------------------------------------------------
-riscv_core core_i (
+riscv_core #(
+  .PC_SIZE(16)
+) core_i (
   .clk_i(clk),
   .reset_i(reset),
 
@@ -99,14 +102,14 @@ always @(posedge clk) begin
   end
 
   if (daddr_w == 32'h80000000 && dwr_w) begin
-    $write("\n--- HALT ---\n");
+    $write("\n--- HALT (%1d cycles) ---\n", cycles);
     $finish;
   end
 end
 
 always @(posedge clk) begin
   if (lock_w) begin
-    $write("\n--- LOCKED at %08x ---\n", iaddr_w);
+    $write("\n--- LOCKED at %08x (%1d cycles) ---\n", iaddr_w, cycles);
     #50;
     $finish;
   end
@@ -122,6 +125,7 @@ initial begin
 
   clk = 1;
   reset = 1;
+  cycles = 0;
   @(posedge clk);
   #2;
   reset = 0;
@@ -130,7 +134,7 @@ initial begin
 //  #20000;
   #50000000;
 
-  $write("\n--- done ---\n");
+  $write("\n--- done (%1d cycles) ---\n", cycles);
   $finish;
 end
 
@@ -163,6 +167,10 @@ wire [31:0] debug_opcode_w = core_i.if_rv_w ? core_i.if_rv_op_w : { 16'hx, core_
 //----------------------------------------------------------------------------
 always @(reset)
   $write("------ reset = %d\n", reset);
+
+//----------------------------------------------------------------------------
+always @(posedge clk)
+  cycles = cycles + 1;
 
 //----------------------------------------------------------------------------
 always #5 clk = !clk;

@@ -29,6 +29,7 @@
 `timescale 1ns / 1ps
 
 module riscv_core #(
+  parameter     PC_SIZE  = 32,
   parameter     RESET_SP = 32'h2000
 )(
   input         clk_i,
@@ -48,9 +49,26 @@ module riscv_core #(
   output        dwr_o
 );
 
+/*
+ENABLE_PIPELINE allows pipelined operation, but it creates a very long
+combinatorial loop, which is on a critical path big time:
+irdata_i - if_opcode_w - hazard_w - id_exec_w - ird_o - iaddr_o.
+
+If ENABLE_PIPELINE is not defined, then the same pipeline structure is
+used, but hazards are generated if pipeline stages are busy, without
+looking at the actual registers processed by the stage.
+
+A better way to solve this is to decouple the instruction fetch stage
+from the decode stage, but this results in a more complex overall design.
+
+And the next critical path is immediate decode, which is much harder
+to improve.
+*/
+
 `define ENABLE_COMPRESSED_ISA
 //`define USE_BARREL_SHIFTER
 //`define USE_NATIVE_MULTIPLIER
+//`define ENABLE_PIPELINE
 
 /*- Definitions -------------------------------------------------------------*/
 localparam
@@ -133,19 +151,19 @@ always @(posedge clk_i) begin
 end
 
 /*- Address Counter ---------------------------------------------------------*/
-reg [29:0] if_addr_r;
+reg [PC_SIZE-1:2] if_addr_r;
 
 always @(posedge clk_i) begin
   if (reset_i)
-    if_addr_r <= 30'h0;
+    if_addr_r <= 'h0;
   else if (ird_o)
-    if_addr_r <= if_next_addr_w + 30'd1;
+    if_addr_r <= if_next_addr_w + 'd1;
   else if (branch_taken_w)
-    if_addr_r <= jump_addr_w[31:2];
+    if_addr_r <= jump_addr_w[PC_SIZE-1:2];
 end
 
-wire [29:0] if_next_addr_w =
-    branch_taken_w ? jump_addr_w[31:2] : if_addr_r;
+wire [PC_SIZE-1:2] if_next_addr_w =
+    branch_taken_w ? jump_addr_w[PC_SIZE-1:2] : if_addr_r;
 
 /*- Instruction Fetch -------------------------------------------------------*/
 wire ird_request_w =
@@ -156,7 +174,6 @@ wire ird_request_w =
     (ST_UNALIGNED == if_state_r && if_hi_is_rv_w);
 
 assign iaddr_o = { if_next_addr_w, 2'b00 };
-
 assign ird_o   = branch_taken_w || (ird_request_w && id_exec_w);
 assign lock_o  = id_lock_r;
 
@@ -172,18 +189,18 @@ wire [31:0] if_rv_op_w  = (ST_UNALIGNED == if_state_r) ? { irdata_i[15:0], if_bu
 wire [15:0] if_rvc_op_w = (ST_HIGH == if_state_r) ? irdata_i[31:16] : irdata_i[15:0];
 
 /*- Instruction Fetch Pipeline Registers ------------------------------------*/
-reg [31:0] if_pc_r;
+reg [PC_SIZE-1:0] if_pc_r;
 
 always @(posedge clk_i) begin
   if (reset_i)
-    if_pc_r <= 31'h0;
+    if_pc_r <= 'h0;
   else if (branch_taken_w)
-    if_pc_r <= jump_addr_w;
+    if_pc_r <= jump_addr_w[PC_SIZE-1:0];
   else if (if_valid_w && id_exec_w)
     if_pc_r <= if_next_pc_w;
 end
 
-wire [31:0] if_next_pc_w = if_pc_r + (if_rv_w ? 31'd4 : 31'd2);
+wire [PC_SIZE-1:0] if_next_pc_w = if_pc_r + (if_rv_w ? 'd4 : 'd2);
 
 /*- Compressed Instructions Decoder -----------------------------------------*/
 `ifdef ENABLE_COMPRESSED_ISA
@@ -319,6 +336,9 @@ always @ (*) begin
           if_rvc_dec_w = { 7'b0000000, if_rvc_op_w[6:2], if_rvc_op_w[11:7],
               3'b000, if_rvc_op_w[11:7], 7'b0110011 };
       end
+    end
+
+    default: begin
     end
   endcase
 end
@@ -456,18 +476,37 @@ wire [2:0] id_branch_w =
     jump_w ? BR_JUMP : BR_NONE;
 
 wire [1:0] id_mem_size_w =
-    (lb_w || lbu_w || sb_w) ? SIZE_BYTE : 
+    (lb_w || lbu_w || sb_w) ? SIZE_BYTE :
     (lh_w || lhu_w || sh_w) ? SIZE_HALF : SIZE_WORD;
 
 /*- Hazard Detection --------------------------------------------------------*/
+`ifdef ENABLE_PIPELINE
 wire id_hazard_w = (id_rd_index_r != 5'd0) && (id_ra_index_w == id_rd_index_r || id_rb_index_w == id_rd_index_r);
 wire ex_hazard_w = (ex_rd_index_r != 5'd0) && (id_ra_index_w == ex_rd_index_r || id_rb_index_w == ex_rd_index_r);
 wire hazard_w    = id_hazard_w || ex_hazard_w;
+`else
+reg id_hazard_r;
+reg ex_hazard_r;
+
+always @(posedge clk_i) begin
+  if (id_bubble_w)
+    id_hazard_r <= 1'b0;
+  else if (id_ready_w)
+    id_hazard_r <= 1'b1;
+
+  if (ex_bubble_w)
+    ex_hazard_r <= 1'b0;
+  else if (ex_ready_w)
+    ex_hazard_r <= id_hazard_r;
+end
+
+wire hazard_w = id_hazard_r || ex_hazard_r;
+`endif
 
 /*- Instruction Decoder Pipeline Registers ----------------------------------*/
 reg [31:0] reg_r [0:31];
-reg [31:0] id_pc_r;
-reg [31:0] id_next_pc_r;
+reg [PC_SIZE-1:0] id_pc_r;
+reg [PC_SIZE-1:0] id_next_pc_r;
 reg  [4:0] id_rd_index_r;
 reg [31:0] id_ra_value_r;
 reg [31:0] id_rb_value_r;
@@ -484,13 +523,14 @@ reg  [2:0] id_branch_r;
 reg        id_reg_jump_r;
 reg        id_lock_r;
 
-wire id_ready_w = !ex_stall_w && !mem_stall_w && !id_lock_r;
-wire id_exec_w  = id_ready_w && !hazard_w;
+wire id_bubble_w = reset_i || ((branch_taken_w || hazard_w || !if_valid_w) && id_ready_w);
+wire id_ready_w  = !ex_stall_w && !mem_stall_w && !id_lock_r;
+wire id_exec_w   = id_ready_w && !hazard_w;
 
 always @(posedge clk_i) begin
-  if (reset_i || ((branch_taken_w || hazard_w || !if_valid_w) && id_ready_w)) begin
-    id_pc_r         <= 32'h0;
-    id_next_pc_r    <= 32'h0;
+  if (id_bubble_w) begin
+    id_pc_r         <= 'h0;
+    id_next_pc_r    <= 'h0;
     id_rd_index_r   <= 5'd0;
     id_imm_r        <= 32'h0;
     id_a_signed_r   <= 1'b0;
@@ -638,7 +678,7 @@ always @(posedge clk_i) begin
     if (mul_busy_r) begin
       mul_count_r <= mul_count_r - 5'd1;
       mul_res_r   <= { mul_sum_w, mul_res_r[31:1] };
- 
+
       if (mul_count_r == 5'd0) begin
         mul_busy_r  <= 1'b0;
         mul_ready_r <= 1'b1;
@@ -754,8 +794,11 @@ reg        ex_mem_wr_r;
 reg        ex_mem_signed_r;
 reg  [1:0] ex_mem_size_r;
 
+wire ex_bubble_w = reset_i || (ex_stall_w && !mem_stall_w);
+wire ex_ready_w  = !mem_stall_w;
+
 always @(posedge clk_i) begin
-  if (reset_i || (ex_stall_w && !mem_stall_w)) begin
+  if (ex_bubble_w) begin
     if (reset_i) begin
       ex_rd_index_r <= 5'd2; // SP
       ex_alu_res_r  <= RESET_SP;
@@ -769,7 +812,7 @@ always @(posedge clk_i) begin
     ex_mem_wr_r     <= 1'b0;
     ex_mem_signed_r <= 1'b0;
     ex_mem_size_r   <= SIZE_BYTE;
-  end else if (!mem_stall_w) begin
+  end else if (ex_ready_w) begin
     ex_rd_index_r   <= id_rd_index_r;
     ex_alu_res_r    <= ex_alu_res_w;
     ex_mem_data_r   <= id_rb_value_r;
@@ -814,5 +857,4 @@ always @(posedge clk_i) begin
 end
 
 endmodule
-
 
