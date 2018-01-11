@@ -47,14 +47,22 @@ module per_uart (
 //-----------------------------------------------------------------------------
 localparam
   REG_CSR  = 16'h0000,
-  REG_DATA = 16'h0004;
-  
-  // TODO: baudrate register
-`define BAUDRATE_DIV   434 // 115200
+  REG_BR   = 16'h0004,
+  REG_DATA = 16'h0008;
 
 localparam
   BIT_CSR_TX_READY  = 0,
   BIT_CSR_RX_READY  = 1;
+
+//-----------------------------------------------------------------------------
+reg [15:0] br_r;
+
+always @(posedge clk_i) begin
+  if (reset_i)
+    br_r <= 16'h0;
+  else if (wr_i && (REG_BR == addr_i))
+    br_r <= wdata_i[15:0];
+end
 
 //-----------------------------------------------------------------------------
 `ifdef SIMULATOR
@@ -67,22 +75,22 @@ assign uart_tx_o = 1'b1;
 
 `else
 //-----------------------------------------------------------------------------
-reg [9:0] br_cnt_r;
-reg [3:0] bit_cnt_r;
-reg [9:0] shifter_r;
-reg       tx_ready_r;
+reg [15:0] br_cnt_r;
+reg  [3:0] bit_cnt_r;
+reg  [9:0] shifter_r;
+reg        tx_ready_r;
 
 always @(posedge clk_i) begin
   if (reset_i) begin
-    br_cnt_r   <= 10'd0;
+    br_cnt_r   <= 16'd0;
     bit_cnt_r  <= 4'd0;
     shifter_r  <= 10'h1;
     tx_ready_r <= 1'b1;
   end else if (bit_cnt_r) begin
-    if (`BAUDRATE_DIV == br_cnt_r) begin
+    if (br_cnt_r == br_r) begin
       shifter_r <= { 1'b1, shifter_r[9:1] };
       bit_cnt_r <= bit_cnt_r - 4'd1;
-      br_cnt_r  <= 10'd0;
+      br_cnt_r  <= 16'd0;
     end else begin
       br_cnt_r  <= br_cnt_r + 10'd1;
     end

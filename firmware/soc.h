@@ -12,6 +12,7 @@
 typedef struct
 {
   uint32_t     CSR;
+  uint32_t     BR;
   uint32_t     DATA;
 } Uart;
 

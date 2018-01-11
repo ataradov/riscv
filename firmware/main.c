@@ -76,11 +76,16 @@ int p_snprintf(char *str, size_t size, const char *fmt, ...);
 /*- Implementations ---------------------------------------------------------*/
 
 //-----------------------------------------------------------------------------
+void uart_init(int br)
+{
+  UART->BR = F_CPU / br;
+}
+
+//-----------------------------------------------------------------------------
 void iputc(int c)
 {
   while (0 == (UART->CSR & UART_CSR_TX_READY));
   UART->DATA = c;
-//  *(volatile uint32_t *)0x00020000 = c; // TODO: remove
 }
 
 //-----------------------------------------------------------------------------
@@ -583,20 +588,33 @@ void test_hardware(void)
 
     if (GPIO->READ & GPIO_BIT_0)
       debounce = 0;
-    else if (debounce < 5001)
+    else if (debounce < 20001)
       debounce++;
 
-    if (5000 == debounce)
+    if (20000 == debounce)
     {
       dir = !dir;
       iputs(dir ? "up" : "down");
     }
   }
+
+/*
+  int cnt = 1;
+  while (1)
+  {
+    GPIO->WRITE = cnt++;
+    iprintf("%d\r\n", cnt);
+
+    for (int i = 0; i < 5000000; i++)
+      asm("nop");
+  }
+*/
 }
 
 //-----------------------------------------------------------------------------
 int main(void)
 {
+  uart_init(115200);
   iputs("\r\n--- main ---\r\n");
 
   test_basic_prints();
@@ -612,18 +630,7 @@ int main(void)
 
   halt();
 
-  int cnt = 1;
-  while (1)
-  {
-    GPIO->WRITE = cnt++;
-    iprintf("%d\r\n", cnt);
-
-    for (int i = 0; i < 5000000; i++)
-      asm("nop");
-  }
-
-
-//  test_hardware();
+  test_hardware();
 
   return 0;
 }
