@@ -33,9 +33,9 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include "soc.h"
 
 /*- Definitions -------------------------------------------------------------*/
-#define MMIO_REG(addr, type)   (*(volatile type *)(addr))
 
 /*- Constants ---------------------------------------------------------------*/
 static const uint32_t bit_mask[32] =
@@ -76,16 +76,11 @@ int p_snprintf(char *str, size_t size, const char *fmt, ...);
 /*- Implementations ---------------------------------------------------------*/
 
 //-----------------------------------------------------------------------------
-void halt(void)
-{
-  *(volatile uint32_t *)0x80000000 = 1;
-  while (1);
-}
-
-//-----------------------------------------------------------------------------
 void iputc(int c)
 {
-  *(volatile uint32_t *)0x00010000 = c;
+  while (0 == (UART->CSR & UART_CSR_TX_READY));
+  UART->DATA = c;
+//  *(volatile uint32_t *)0x00020000 = c; // TODO: remove
 }
 
 //-----------------------------------------------------------------------------
@@ -109,6 +104,13 @@ void iprintf(const char *fmt, ...)
 }
 
 //-----------------------------------------------------------------------------
+void halt(void)
+{
+  iputs("*** halting ***\r\n");
+  *(volatile uint32_t *)0x80000000 = 1; // Simulation only
+}
+
+//-----------------------------------------------------------------------------
 void assert(bool cond, const char *fmt, ...)
 {
   if (!cond)
@@ -123,7 +125,7 @@ void assert(bool cond, const char *fmt, ...)
     va_end(ap);
 
     iputs(str);
-    iputs("\n");
+    iputs("\r\n");
     halt();
   }
 }
@@ -169,7 +171,6 @@ uint32_t divide(uint32_t dividend, uint32_t divisor, uint32_t *remainder)
 int32_t divide_signed(int32_t dividend, int32_t divisor, int32_t *remainder)
 {
   bool negative = ((dividend & 0x80000000) != (divisor & 0x80000000));
-  //bool rnegative = (dividend & 0x80000000); // TODO: this is needed for X86
   uint32_t quot, rem, tmp;
 
   if (dividend & 0x80000000)
@@ -194,7 +195,7 @@ int32_t divide_signed(int32_t dividend, int32_t divisor, int32_t *remainder)
     }
   }
 
-  *remainder = negative ? -rem : rem; // rnegative for X86
+  *remainder = negative ? -rem : rem;
 
   return negative ? -quot : quot;
 }
@@ -314,40 +315,40 @@ void qsort_my(int *v, int left, int right)
 //-----------------------------------------------------------------------------
 static void test_basic_prints(void)
 {
-  iputs("\nBasic prints:\n");
+  iputs("\r\nBasic prints:\r\n");
 
   puthex(0x1, 1);
-  iputc('\n');
+  iputs("\r\n");
   puthex(0x12, 2);
-  iputc('\n');
+  iputs("\r\n");
   puthex(0x123, 3);
-  iputc('\n');
+  iputs("\r\n");
   puthex(0x1234, 4);
-  iputc('\n');
+  iputs("\r\n");
   puthex(0x12345, 5);
-  iputc('\n');
+  iputs("\r\n");
   puthex(0x123456, 6);
-  iputc('\n');
+  iputs("\r\n");
   puthex(0x1234567, 7);
-  iputc('\n');
+  iputs("\r\n");
   puthex(0x12345678, 8);
-  iputc('\n');
+  iputs("\r\n");
 }
 
 //-----------------------------------------------------------------------------
 static void test_printf(void)
 {
-  iputs("\nprintf():\n");
+  iputs("\r\nprintf():\r\n");
 
-  iprintf("  printf() test\n");
-  iprintf("  printf() test %d some other text\n", 123456);
-  iprintf("  Test %s %c %d, 0x%08x\n", "str", '$', 1234, 0x1234);
+  iprintf("  printf() test\r\n");
+  iprintf("  printf() test %d some other text\r\n", 123456);
+  iprintf("  Test %s %c %d, 0x%08x\r\n", "str", '$', 1234, 0x1234);
 }
 
 //-----------------------------------------------------------------------------
 static void test_callback_fn(int index, int value)
 {
-  iprintf("  test_callback_fn: %d %d\n", index, value);
+  iprintf("  test_callback_fn: %d %d\r\n", index, value);
   assert(sort_data[index] == value, "Callback value is incorrect");
 }
 
@@ -356,9 +357,9 @@ static void test_callbacks(void)
 {
   volatile callback_t callback = test_callback_fn;
 
-  iputs("\nCallbacks:\n");
+  iputs("\r\nCallbacks:\r\n");
 
-  iprintf("  before callback()\n");
+  iprintf("  before callback()\r\n");
 
   callback(0, sort_data[0]);
   callback(1, sort_data[1]);
@@ -367,59 +368,59 @@ static void test_callbacks(void)
   for (int i = 0; i < SORT_DATA_SIZE; i++)
     callback(i, sort_data[i]);
 
-  iprintf("  after callback()\n");
+  iprintf("  after callback()\r\n");
 }
 
 //-----------------------------------------------------------------------------
 static void test_bubble_sort(void)
 {
-  iputs("\nBubble sort:\n");
+  iputs("\r\nBubble sort:\r\n");
 
   for (int i = 0; i < SORT_DATA_SIZE; i++)
     array_for_sort[i] = sort_data[i];
 
-  iputs("  array init done\n");
+  iputs("  array init done\r\n");
 
   bubble(array_for_sort, SORT_DATA_SIZE);
 
-  iputs("  sort done:\n");
+  iputs("  sort done:\r\n");
 
   for (int i = 0; i < SORT_DATA_SIZE; i++)
-    iprintf("  %2d - 0x%08x\n", i, array_for_sort[i]);
+    iprintf("  %2d - 0x%08x\r\n", i, array_for_sort[i]);
 
   for (int i = 1; i < SORT_DATA_SIZE; i++)
-    assert(array_for_sort[i-1] <= array_for_sort[i], "Bubble sort error\n");
+    assert(array_for_sort[i-1] <= array_for_sort[i], "Bubble sort error\r\n");
 }
 
 //-----------------------------------------------------------------------------
 static void test_qsort(void)
 {
-  iputs("\nQsort sort:\n");
+  iputs("\r\nQsort sort:\r\n");
 
   for (int i = 0; i < SORT_DATA_SIZE; i++)
     array_for_sort[i] = sort_data[i];
 
-  iputs("  array init done\n");
+  iputs("  array init done\r\n");
 
   qsort_my(array_for_sort, 0, SORT_DATA_SIZE-1);
 
-  iputs("  sort done:\n");
+  iputs("  sort done:\r\n");
 
   for (int i = 0; i < SORT_DATA_SIZE; i++)
-    iprintf("  %2d - 0x%08x\n", i, array_for_sort[i]);
+    iprintf("  %2d - 0x%08x\r\n", i, array_for_sort[i]);
 
   for (int i = 1; i < SORT_DATA_SIZE; i++)
-    assert(array_for_sort[i-1] <= array_for_sort[i], "Qsort error\n");
+    assert(array_for_sort[i-1] <= array_for_sort[i], "Qsort error\r\n");
 }
 
 //-----------------------------------------------------------------------------
 void test_hw_sw_div(void)
 {
-  iputs("\nHW/SW divider:\n");
+  iputs("\r\nHW/SW divider:\r\n");
 
   for (int i = 0; i < TP_SIZE; i++)
   {
-    iprintf("  i = %d\n", i);
+    iprintf("  i = %d\r\n", i);
 
     for (int j = 0; j < TP_SIZE; j++)
     {
@@ -436,8 +437,8 @@ void test_hw_sw_div(void)
         qres = num / den;
         rres = num % den;
 
-        assert(qref == qres, "Unsigned divide error (Q): %08x / %08x: sw = %08x, hw = %08x\n", num, den, qref, qres);
-        assert(rref == rres, "Unsigned divide error (R): %08x %% %08x: sw = %08x, hw = %08x\n", num, den, rref, rres);
+        assert(qref == qres, "Unsigned divide error (Q): %08x / %08x: sw = %08x, hw = %08x\r\n", num, den, qref, qres);
+        assert(rref == rres, "Unsigned divide error (R): %08x %% %08x: sw = %08x, hw = %08x\r\n", num, den, rref, rres);
       }
 
       { // Signed
@@ -447,8 +448,8 @@ void test_hw_sw_div(void)
         qres = (int32_t)num / (int32_t)den;
         rres = (int32_t)num % (int32_t)den;
 
-        assert(qref == qres, "Signed divide error (Q): %08x / %08x: sw = %08x, hw = %08x\n", num, den, qref, qres);
-        assert(rref == rres, "Signed divide error (R): %08x %% %08x: sw = %08x, hw = %08x\n", num, den, rref, rres);
+        assert(qref == qres, "Signed divide error (Q): %08x / %08x: sw = %08x, hw = %08x\r\n", num, den, qref, qres);
+        assert(rref == rres, "Signed divide error (R): %08x %% %08x: sw = %08x, hw = %08x\r\n", num, den, rref, rres);
       }
     }
   }
@@ -457,11 +458,11 @@ void test_hw_sw_div(void)
 //-----------------------------------------------------------------------------
 void test_hw_sw_mul(void)
 {
-  iputs("\nHW/SW multiplier:\n");
+  iputs("\r\nHW/SW multiplier:\r\n");
 
   for (int i = 0; i < TP_SIZE; i++)
   {
-    iprintf("  i = %d\n", i);
+    iprintf("  i = %d\r\n", i);
 
     for (int j = 0; j < TP_SIZE; j++)
     {
@@ -474,7 +475,7 @@ void test_hw_sw_mul(void)
         ref = multiply(a, b);
         res = (uint64_t)a * (uint64_t)b;
 
-        assert(ref == res, "Unsigned multiply error: %08x * %08x: sw = %08x%08x, hw = %08x%08x\n",
+        assert(ref == res, "Unsigned multiply error: %08x * %08x: sw = %08x%08x, hw = %08x%08x\r\n",
               a, b, (uint32_t)(ref >> 32), (uint32_t)(ref & 0xffffffff), (uint32_t)(res >> 32), (uint32_t)(res & 0xffffffff));
       }
       { // Signed
@@ -485,7 +486,7 @@ void test_hw_sw_mul(void)
         ref = multiply_signed(aa, bb);
         res = (int64_t)aa * (int64_t)bb;
 
-        assert(ref == res, "Signed multiply error: %08x * %08x: sw = %08x%08x, hw = %08x%08x\n",
+        assert(ref == res, "Signed multiply error: %08x * %08x: sw = %08x%08x, hw = %08x%08x\r\n",
               aa, bb, (uint32_t)(ref >> 32), (uint32_t)(ref & 0xffffffff), (uint32_t)(res >> 32), (uint32_t)(res & 0xffffffff));
       }
     }
@@ -497,17 +498,17 @@ void test_hw_sw_shift(void)
 {
   // Note: this is a sligtly redundant test, since without working shifts
   // we are not likely to get here anyway.
-  iputs("\nHW/SW shifter:\n");
+  iputs("\r\nHW/SW shifter:\r\n");
 
   for (int i = 0; i < TP_SIZE; i++)
   {
-    iprintf("  i = %d\n", i);
+    iprintf("  i = %d\r\n", i);
 
     for (int j = 0; j < SH_TP_SIZE; j++)
     {
       int amt = sh_test_pattern[j];
 
-      iprintf("    sh = %d\n", amt);
+      iprintf("    sh = %d\r\n", amt);
 
       { // Left
         uint32_t a = test_pattern[i];
@@ -516,7 +517,7 @@ void test_hw_sw_shift(void)
         ref = shift(a, amt, true, false);
         res = a << amt;
 
-        assert(ref == res, "Shift error: %08x << %d: sw = %08x, hw = %08x\n", a, amt, ref, res);
+        assert(ref == res, "Shift error: %08x << %d: sw = %08x, hw = %08x\r\n", a, amt, ref, res);
       }
 
       { // Logical Right
@@ -526,7 +527,7 @@ void test_hw_sw_shift(void)
         ref = shift(a, amt, false, false);
         res = a >> amt;
 
-        assert(ref == res, "Shift error: %08x >> %d: sw = %08x, hw = %08x\n", a, amt, ref, res);
+        assert(ref == res, "Shift error: %08x >> %d: sw = %08x, hw = %08x\r\n", a, amt, ref, res);
       }
 
       { // Arithmetic Right
@@ -536,8 +537,59 @@ void test_hw_sw_shift(void)
         ref = shift(a, amt, false, true);
         res = a >> amt;
 
-        assert(ref == res, "Shift error: %08x >>> %d: sw = %08x, hw = %08x\n", a, amt, ref, res);
+        assert(ref == res, "Shift error: %08x >>> %d: sw = %08x, hw = %08x\r\n", a, amt, ref, res);
       }
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+void timer_init(int interval_us)
+{
+  TIMER->COUNT = 0;
+  TIMER->COMPARE = interval_us * (F_CPU / 1000000);
+  TIMER->CSR = TIMER_CSR_ENABLE | TIMER_CSR_OVERFLOW;
+}
+
+//-----------------------------------------------------------------------------
+bool timer_expired(void)
+{
+  if (TIMER->CSR & TIMER_CSR_OVERFLOW)
+  {
+    TIMER->CSR = TIMER_CSR_OVERFLOW;
+    return true;
+  }
+
+  return false;
+}
+
+//-----------------------------------------------------------------------------
+void test_hardware(void)
+{
+  int debounce = 0;
+  bool dir = true;
+  int cnt = 0;
+
+  timer_init(1000000);
+
+  while (1)
+  {
+    if (timer_expired())
+    {
+      iputc('.');
+      GPIO->WRITE = cnt;
+      cnt += dir ? 1 : -1;
+    }
+
+    if (GPIO->READ & GPIO_BIT_0)
+      debounce = 0;
+    else if (debounce < 5001)
+      debounce++;
+
+    if (5000 == debounce)
+    {
+      dir = !dir;
+      iputs(dir ? "up" : "down");
     }
   }
 }
@@ -545,7 +597,7 @@ void test_hw_sw_shift(void)
 //-----------------------------------------------------------------------------
 int main(void)
 {
-  iputs("\n--- main ---\n");
+  iputs("\r\n--- main ---\r\n");
 
   test_basic_prints();
   test_printf();
@@ -556,24 +608,22 @@ int main(void)
   test_hw_sw_mul();
   test_hw_sw_shift();
 
-  iputs("\nAll tests PASSED.\n");
-  iputs("*** halting ***\n");
+  iputs("\r\nAll tests PASSED.\r\n");
+
   halt();
 
-#if 1
+  int cnt = 1;
   while (1)
   {
-    *(volatile uint32_t *)0x00020000 = 0xaa;
+    GPIO->WRITE = cnt++;
+    iprintf("%d\r\n", cnt);
 
-    for (int i = 0; i < 20000000; i++)
-      asm("nop");
-
-    *(volatile uint32_t *)0x00020000 = 0x55;
-
-    for (int i = 0; i < 20000000; i++)
+    for (int i = 0; i < 5000000; i++)
       asm("nop");
   }
-#endif
+
+
+//  test_hardware();
 
   return 0;
 }
@@ -589,5 +639,4 @@ void entry(void)
 
   main();
 }
-
 

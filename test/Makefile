@@ -1,5 +1,10 @@
 SRCS = \
   ../rtl/riscv_core.v \
+  ../rtl/soc.v \
+  ../rtl/bus_mux.v \
+  ../rtl/per_gpio.v \
+  ../rtl/per_timer.v \
+  ../rtl/per_uart.v \
   memory.v \
   riscv_tb.v \
 
@@ -16,7 +21,7 @@ SIM_FILE=$(TEMP)/__riscv.sim
 
 all:
 	@-rm $(VCD_FILE)
-	@iverilog -Wall -o $(SIM_FILE) -DVCD_FILE=\"$(VCD_FILE)\" $(SRCS)
+	@iverilog -Wall -o $(SIM_FILE) -DSIMULATOR -DVCD_FILE=\"$(VCD_FILE)\" $(SRCS)
 	@vvp -n $(SIM_FILE)
 
 wave:

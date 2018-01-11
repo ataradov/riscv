@@ -38,70 +38,19 @@ integer     cycles;
 reg         clk;
 reg         reset;
 
-wire        lock_w;
-
-wire [31:0] iaddr_w;
-wire [31:0] irdata_w;
-wire        ird_w;
-wire [31:0] daddr_w;
-wire [31:0] dwdata_w;
-wire [31:0] drdata_w;
-wire  [1:0] dsize_w;
-wire        drd_w;
-wire        dwr_w;
-
 //----------------------------------------------------------------------------
-riscv_core #(
-  .PC_SIZE(16)
-) core_i (
+wire lock_w;
+
+soc soc_i (
   .clk_i(clk),
   .reset_i(reset),
-
   .lock_o(lock_w),
-
-  .iaddr_o(iaddr_w),
-  .irdata_i(irdata_w),
-  .ird_o(ird_w),
-
-  .daddr_o(daddr_w),
-  .dwdata_o(dwdata_w),
-  .drdata_i(drdata_w),
-  .dsize_o(dsize_w),
-  .drd_o(drd_w),
-  .dwr_o(dwr_w)
+  .uart_rx_i(1'b1),
+  .gpio_in_i(32'hffffffff)
 );
-
-//----------------------------------------------------------------------------
-memory #(
-  .DEPTH(16),
-  .FILE_NAME("../firmware/test.mem")
-) memory_i (
-  .clk_i(clk),
-  .reset_i(reset),
-
-  .iaddr_i(iaddr_w),
-  .irdata_o(irdata_w),
-  .ird_i(ird_w),
-
-  .daddr_i(daddr_w),
-  .dwdata_i(dwdata_w),
-  .drdata_o(drdata_w),
-  .dsize_i(dsize_w),
-  .drd_i(drd_mem_w),
-  .dwr_i(dwr_mem_w)
-);
-
-wire mem_access_w = (daddr_w < 32'h10000);
-
-wire drd_mem_w = drd_w & mem_access_w;
-wire dwr_mem_w = dwr_w & mem_access_w;
 
 always @(posedge clk) begin
-  if (daddr_w == 32'h00010000 && dwr_w) begin
-    $write("%c", dwdata_w[7:0]);
-  end
-
-  if (daddr_w == 32'h80000000 && dwr_w) begin
+  if (soc_i.daddr_w == 32'h80000000 && soc_i.dwr_w) begin
     $write("\n--- HALT (%1d cycles) ---\n", cycles);
     $finish;
   end
@@ -109,7 +58,7 @@ end
 
 always @(posedge clk) begin
   if (lock_w) begin
-    $write("\n--- LOCKED at %08x (%1d cycles) ---\n", iaddr_w, cycles);
+    $write("\n--- LOCKED at %08x (%1d cycles) ---\n", soc_i.iaddr_w, cycles);
     #50;
     $finish;
   end
@@ -121,7 +70,7 @@ initial begin
   $dumpvars(0, riscv_tb);
 
   for (i = 0; i < 32; i = i + 1)
-    core_i.reg_r[i] = 32'h0;
+    soc_i.core_i.reg_r[i] = 32'h0;
 
   clk = 1;
   reset = 1;
@@ -131,7 +80,6 @@ initial begin
   reset = 0;
 
   #500;
-//  #20000;
   #50000000;
 
   $write("\n--- done (%1d cycles) ---\n", cycles);
@@ -145,24 +93,25 @@ end
 
 always @(posedge clk) begin
 `ifdef DEBUG_MEM_WR
-  if (dwr_w)
-    $write("[0x%08x] = 0x%08x\n", daddr_w, dwdata_w);
+  if (soc_i.dwr_w)
+    $write("[0x%08x] = 0x%08x\n", soc_i.daddr_w, soc_i.dwdata_w);
 `endif
 
 `ifdef DEBUG_REG_WR
-  if (core_i.rd_we_w) begin
-    $write("r%d = 0x%08x\n", core_i.rd_index_w, core_i.rd_value_w);
+  if (soc_i.core_i.rd_we_w) begin
+    $write("r%d = 0x%08x\n", soc_i.core_i.rd_index_w, soc_i.core_i.rd_value_w);
   end
 `endif
 
 `ifdef DEBUG_PC_WR
-  if (core_i.branch_taken_w) begin
-    $write("--- PC = 0x%08x\n", core_i.jump_addr_w);
+  if (soc_i.core_i.branch_taken_w) begin
+    $write("--- PC = 0x%08x\n", soc_i.core_i.jump_addr_w);
   end
 `endif
 end
 
-wire [31:0] debug_opcode_w = core_i.if_rv_w ? core_i.if_rv_op_w : { 16'hx, core_i.if_rvc_op_w };
+wire [31:0] debug_opcode_w =
+    soc_i.core_i.if_rv_w ? soc_i.core_i.if_rv_op_w : { 16'hx, soc_i.core_i.if_rvc_op_w };
 
 //----------------------------------------------------------------------------
 always @(reset)

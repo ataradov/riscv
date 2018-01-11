@@ -1,6 +1,0 @@
-bus_mux.v
-per_gpio.v
-per_timer.v
-per_uart.v
-riscv_core_new.v
-soc.v

@@ -6,6 +6,9 @@ SRCS = \
   main.c \
   p_printf.c \
 
+HDRS =\
+  soc.h
+
 CFLAGS += -W -Wall --std=gnu11 -Os
 CFLAGS += -mabi=ilp32 -march=rv32imc
 CFLAGS += -fdata-sections -ffunction-sections
@@ -15,9 +18,12 @@ CFLAGS += -static -ffreestanding -nostartfiles
 CFLAGS += -Wl,--script=linker.ld
 CFLAGS += -flto
 
+CFLAGS += \
+  -DF_CPU=50000000
+
 all: $(BIN).elf $(BIN).bin $(BIN).mem $(BIN).mif size
 
-$(BIN).elf: $(SRCS)
+$(BIN).elf: $(SRCS) $(HDRS)
 	@echo CC
 	@$(CROSS)gcc $(CFLAGS) $^ -o $@
 
@@ -42,5 +48,4 @@ size: $(BIN).elf
 
 clean:
 	-rm $(BIN).elf $(BIN).bin $(BIN).mem $(BIN).mif
-
 
