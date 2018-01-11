@@ -89,6 +89,15 @@ void iputc(int c)
 }
 
 //-----------------------------------------------------------------------------
+int igetc(void)
+{
+  if (UART->CSR & UART_CSR_RX_READY)
+    return UART->DATA;
+
+  return -1;
+}
+
+//-----------------------------------------------------------------------------
 void iputs(char *s)
 {
   while (*s)
@@ -596,19 +605,19 @@ void test_hardware(void)
       dir = !dir;
       iputs(dir ? "up" : "down");
     }
-  }
 
-/*
-  int cnt = 1;
-  while (1)
-  {
-    GPIO->WRITE = cnt++;
-    iprintf("%d\r\n", cnt);
+    int rx = igetc();
 
-    for (int i = 0; i < 5000000; i++)
-      asm("nop");
+    if (-1 != rx)
+    {
+      if ('a' <= rx && rx <= 'z')
+        rx -= 32;
+      else if ('A' <= rx && rx <= 'Z')
+        rx += 32;
+
+      iputc(rx);
+    }
   }
-*/
 }
 
 //-----------------------------------------------------------------------------

@@ -43,6 +43,8 @@ module per_uart (
   output        uart_tx_o
 );
 
+// Note: this is not the most efficient UART implementation, but it is simple
+// and works for the purpose of demonstration
 
 //-----------------------------------------------------------------------------
 localparam
@@ -75,42 +77,96 @@ assign uart_tx_o = 1'b1;
 
 `else
 //-----------------------------------------------------------------------------
-reg [15:0] br_cnt_r;
-reg  [3:0] bit_cnt_r;
-reg  [9:0] shifter_r;
+reg [15:0] tx_br_cnt_r;
+reg  [3:0] tx_bit_cnt_r;
+reg  [9:0] tx_shifter_r;
 reg        tx_ready_r;
 
 always @(posedge clk_i) begin
   if (reset_i) begin
-    br_cnt_r   <= 16'd0;
-    bit_cnt_r  <= 4'd0;
-    shifter_r  <= 10'h1;
-    tx_ready_r <= 1'b1;
-  end else if (bit_cnt_r) begin
-    if (br_cnt_r == br_r) begin
-      shifter_r <= { 1'b1, shifter_r[9:1] };
-      bit_cnt_r <= bit_cnt_r - 4'd1;
-      br_cnt_r  <= 16'd0;
+    tx_br_cnt_r  <= 16'd0;
+    tx_bit_cnt_r <= 4'd0;
+    tx_shifter_r <= 10'h1;
+    tx_ready_r   <= 1'b1;
+  end else if (tx_bit_cnt_r) begin
+    if (tx_br_cnt_r == br_r) begin
+      tx_shifter_r <= { 1'b1, tx_shifter_r[9:1] };
+      tx_bit_cnt_r <= tx_bit_cnt_r - 4'd1;
+      tx_br_cnt_r  <= 16'd0;
     end else begin
-      br_cnt_r  <= br_cnt_r + 10'd1;
+      tx_br_cnt_r  <= tx_br_cnt_r + 16'd1;
     end
   end else if (!tx_ready_r) begin
     tx_ready_r <= 1'b1;
   end else if (wr_i && (REG_DATA == addr_i)) begin
-    shifter_r  <= { 1'b1, wdata_i[7:0], 1'b0 };
-    bit_cnt_r  <= 4'd10;
-    tx_ready_r <= 1'b0;
+    tx_shifter_r <= { 1'b1, wdata_i[7:0], 1'b0 };
+    tx_bit_cnt_r <= 4'd10;
+    tx_ready_r   <= 1'b0;
   end
 end
 
-assign uart_tx_o = shifter_r[0];
+assign uart_tx_o = tx_shifter_r[0];
 `endif
+
+//-----------------------------------------------------------------------------
+reg [15:0] rx_br_cnt_r;
+reg  [3:0] rx_bit_cnt_r;
+reg  [8:0] rx_shifter_r;
+reg  [7:0] rx_data_r;
+reg        rx_done_r;
+
+always @(posedge clk_i) begin
+  if (reset_i) begin
+    rx_br_cnt_r  <= 16'd1;
+    rx_bit_cnt_r <= 4'd0;
+    rx_shifter_r <= 10'h0;
+    rx_done_r    <= 1'b0;
+  end else if (rx_bit_cnt_r) begin
+    if (rx_br_cnt_r == br_r) begin
+      rx_shifter_r <= { uart_rx_i, rx_shifter_r[8:1] };
+      rx_bit_cnt_r <= rx_bit_cnt_r - 4'd1;
+      rx_br_cnt_r  <= 16'd0;
+    end else begin
+      rx_br_cnt_r  <= rx_br_cnt_r + 16'd1;
+    end
+  end else if (rx_done_r) begin
+    rx_done_r <= 1'b0;
+  end else if (rx_shifter_r[8]) begin
+    rx_data_r    <= rx_shifter_r[7:0];
+    rx_done_r    <= 1'b1;
+    rx_shifter_r <= 10'h0;
+  end else if (!uart_rx_i) begin
+    if (rx_br_cnt_r)
+      rx_br_cnt_r <= rx_br_cnt_r - 16'd1;
+    else
+      rx_bit_cnt_r <= 4'd9;
+  end else begin
+    rx_br_cnt_r <= { 1'b0, br_r[15:1] };
+  end
+end
+
+//-----------------------------------------------------------------------------
+reg rx_ready_r;
+
+always @(posedge clk_i) begin
+  if (reset_i)
+    rx_ready_r <= 1'b0;
+  else if (rx_done_r)
+    rx_ready_r <= 1'b1;
+  else if (rd_i && (REG_DATA == addr_i))
+    rx_ready_r <= 1'b0;
+end
 
 //-----------------------------------------------------------------------------
 reg [31:0] reg_data_r;
 
 always @(posedge clk_i) begin
-  reg_data_r <= csr_w;
+  if (reset_i)
+    reg_data_r <= csr_w;
+  else if (REG_DATA == addr_i)
+    reg_data_r <= { 24'h0, rx_data_r };
+  else
+    reg_data_r <= csr_w;
 end
 
 //-----------------------------------------------------------------------------
@@ -121,7 +177,7 @@ assign csr_w[BIT_CSR_TX_READY] = 1'b1;
 assign csr_w[BIT_CSR_RX_READY] = 1'b0;
 `else
 assign csr_w[BIT_CSR_TX_READY] = tx_ready_r;
-assign csr_w[BIT_CSR_RX_READY] = 1'b0; // TODO: TX only for now
+assign csr_w[BIT_CSR_RX_READY] = rx_ready_r;
 `endif
 
 assign csr_w[31:2] = 30'h0;
