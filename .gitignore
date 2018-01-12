@@ -5,6 +5,10 @@ firmware/test.elf
 firmware/test.mem
 firmware/test.mif
 
-fpga
-
+fpga/10M16SAE144C8G/db
+fpga/10M16SAE144C8G/greybox_tmp
+fpga/10M16SAE144C8G/output_files
+fpga/10M16SAE144C8G/simulation
+fpga/10M16SAE144C8G/incremental_db
+fpga/10M16SAE144C8G/riscv_demo.qws
 
