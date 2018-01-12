@@ -29,8 +29,8 @@
 `timescale 1ns / 1ps
 
 module memory #(
-  parameter     DEPTH     = 16,
-  parameter     FILE_NAME = ""
+  parameter     SIZE     = 8192,
+  parameter     FIRMWARE = ""
 )(
   input         clk_i,
   input         reset_i,
@@ -52,6 +52,9 @@ localparam
   SIZE_BYTE = 2'd0,
   SIZE_HALF = 2'd1,
   SIZE_WORD = 2'd2;
+
+localparam
+  DEPTH = $clog2(SIZE);
 
 //-----------------------------------------------------------------------------
 wire [31:0] dwdata_w =
@@ -78,7 +81,7 @@ wire [7:0] rdata_byte_w =
 wire [15:0] rdata_half_w =
     daddr_r[1] ? drdata_r[31:16] : drdata_r[15:0];
 
-wire [31:0] drdata_w =
+assign drdata_o =
     (SIZE_BYTE == dsize_r) ? { 24'b0, rdata_byte_w } :
     (SIZE_HALF == dsize_r) ? { 16'b0, rdata_half_w } : drdata_r;
 
@@ -97,12 +100,10 @@ always @(posedge clk_i) begin
 end
 
 //-----------------------------------------------------------------------------
-localparam SIZE = (1 << DEPTH);
-
 reg [31:0] mem_r [0:SIZE/4-1];
 
 initial begin
-  $readmemh(FILE_NAME, mem_r);
+  $readmemh(FIRMWARE, mem_r);
 end
 
 //-----------------------------------------------------------------------------
@@ -141,7 +142,6 @@ end
 
 //-----------------------------------------------------------------------------
 assign irdata_o = irdata_r;
-assign drdata_o = drdata_w;
 
 endmodule
 

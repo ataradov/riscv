@@ -1,1 +1,10 @@
+test/riscv.gtkw
+
+firmware/test.bin
+firmware/test.elf
+firmware/test.mem
+firmware/test.mif
+
 fpga
+
+

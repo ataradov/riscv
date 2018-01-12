@@ -584,6 +584,8 @@ void test_hardware(void)
   bool dir = true;
   int cnt = 0;
 
+  GPIO->WRITE = 0xaa;
+
   timer_init(1000000);
 
   while (1)

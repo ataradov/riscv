@@ -28,7 +28,10 @@
 
 `timescale 1ns / 1ps
 
-module soc (
+module soc #(
+  parameter     MEM_SIZE = 8192,
+  parameter     FIRMWARE = ""
+)(
   input         clk_i,
   input         reset_i,
 
@@ -54,7 +57,8 @@ wire        drd_w;
 wire        dwr_w;
 
 riscv_core #(
-  .PC_SIZE(16)
+  .PC_SIZE(16),
+  .RESET_SP(MEM_SIZE)
 ) core_i (
   .clk_i(clk_i),
   .reset_i(reset_i),
@@ -146,8 +150,8 @@ bus_mux bus_mux_i (
 
 //----------------------------------------------------------------------------
 memory #(
-  .DEPTH(16),
-  .FILE_NAME("../firmware/test.mem")
+  .SIZE(MEM_SIZE),
+  .FIRMWARE(FIRMWARE)
 ) memory_i (
   .clk_i(clk_i),
   .reset_i(reset_i),

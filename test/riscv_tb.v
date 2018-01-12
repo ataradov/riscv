@@ -41,7 +41,10 @@ reg         reset;
 //----------------------------------------------------------------------------
 wire lock_w;
 
-soc soc_i (
+soc #(
+  .MEM_SIZE(8192),
+  .FIRMWARE("../firmware/test.mem")
+) soc_i (
   .clk_i(clk),
   .reset_i(reset),
   .lock_o(lock_w),
