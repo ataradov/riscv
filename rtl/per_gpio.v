@@ -32,7 +32,7 @@ module per_gpio (
   input         clk_i,
   input         reset_i,
 
-  input  [15:0] addr_i,
+  input  [31:0] addr_i,
   input  [31:0] wdata_i,
   output [31:0] rdata_o,
   input   [1:0] size_i,
@@ -45,11 +45,17 @@ module per_gpio (
 
 //-----------------------------------------------------------------------------
 localparam
-  REG_OUT_WRITE = 16'h0000,
-  REG_OUT_SET   = 16'h0004,
-  REG_OUT_CLR   = 16'h0008,
-  REG_OUT_TGL   = 16'h000c,
-  REG_IN_READ   = 16'h0010;
+  REG_OUT_WRITE = 8'h00,
+  REG_OUT_SET   = 8'h04,
+  REG_OUT_CLR   = 8'h08,
+  REG_OUT_TGL   = 8'h0c,
+  REG_IN_READ   = 8'h10;
+
+//-----------------------------------------------------------------------------
+wire reg_out_write_w = (REG_OUT_WRITE == addr_i[7:0]);
+wire reg_out_set_w   = (REG_OUT_SET   == addr_i[7:0]);
+wire reg_out_clr_w   = (REG_OUT_CLR   == addr_i[7:0]);
+wire reg_out_tgl_w   = (REG_OUT_TGL   == addr_i[7:0]);
 
 //-----------------------------------------------------------------------------
 reg [31:0] gpio_out_r;
@@ -57,13 +63,13 @@ reg [31:0] gpio_out_r;
 always @(posedge clk_i) begin
   if (reset_i)
     gpio_out_r <= 32'h0;
-  else if (wr_i && (REG_OUT_WRITE == addr_i))
+  else if (wr_i && reg_out_write_w)
     gpio_out_r <= wdata_i;
-  else if (wr_i && (REG_OUT_SET == addr_i))
+  else if (wr_i && reg_out_set_w)
     gpio_out_r <= gpio_out_r | wdata_i;
-  else if (wr_i && (REG_OUT_CLR == addr_i))
+  else if (wr_i && reg_out_clr_w)
     gpio_out_r <= gpio_out_r & ~wdata_i;
-  else if (wr_i && (REG_OUT_TGL == addr_i))
+  else if (wr_i && reg_out_tgl_w)
     gpio_out_r <= gpio_out_r ^ wdata_i;
 end
 

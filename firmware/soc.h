@@ -19,7 +19,7 @@ typedef struct
 #define UART_CSR_TX_READY  (1 << 0)
 #define UART_CSR_RX_READY  (1 << 1)
 
-#define UART MMIO_PER(0x00010000, Uart)
+#define UART MMIO_PER(0x10000000, Uart)
 
 //-----------------------------------------------------------------------------
 typedef struct
@@ -64,7 +64,7 @@ typedef struct
 #define GPIO_BIT_30  (1 << 30)
 #define GPIO_BIT_31  (1 << 31)
 
-#define GPIO MMIO_PER(0x00020000, Gpio)
+#define GPIO MMIO_PER(0x20000000, Gpio)
 
 //-----------------------------------------------------------------------------
 typedef struct
@@ -78,7 +78,7 @@ typedef struct
 #define TIMER_CSR_DISABLE  (1 << 1)
 #define TIMER_CSR_OVERFLOW (1 << 2)
 
-#define TIMER MMIO_PER(0x00040000, Timer)
+#define TIMER MMIO_PER(0x30000000, Timer)
 
 #endif // _SOC_H_
 

@@ -78,37 +78,27 @@ riscv_core #(
 );
 
 //-----------------------------------------------------------------------------
-wire [15:0] mem_addr_w;
-wire [31:0] mem_wdata_w;
-wire [31:0] mem_rdata_w;
-wire  [1:0] mem_size_w;
-wire        mem_rd_w;
-wire        mem_wr_w;
+localparam N_SLAVES = 4;
 
-wire [15:0] uart_addr_w;
-wire [31:0] uart_wdata_w;
-wire [31:0] uart_rdata_w;
-wire  [1:0] uart_size_w;
-wire        uart_rd_w;
-wire        uart_wr_w;
+wire [31:0] mem_addr_w, uart_addr_w, gpio_addr_w, timer_addr_w;
+wire [31:0] mem_wdata_w, uart_wdata_w, gpio_wdata_w, timer_wdata_w;
+wire [31:0] mem_rdata_w, uart_rdata_w, gpio_rdata_w, timer_rdata_w;
+wire  [1:0] mem_size_w, uart_size_w, gpio_size_w, timer_size_w;
+wire        mem_rd_w, uart_rd_w, gpio_rd_w, timer_rd_w;
+wire        mem_wr_w, uart_wr_w, gpio_wr_w, timer_wr_w;
 
-wire [15:0] gpio_addr_w;
-wire [31:0] gpio_wdata_w;
-wire [31:0] gpio_rdata_w;
-wire  [1:0] gpio_size_w;
-wire        gpio_rd_w;
-wire        gpio_wr_w;
+wire        mem_sel_w   = (4'h0 == daddr_w[31:28]);
+wire        uart_sel_w  = (4'h1 == daddr_w[31:28]);
+wire        gpio_sel_w  = (4'h2 == daddr_w[31:28]);
+wire        timer_sel_w = (4'h3 == daddr_w[31:28]);
 
-wire [15:0] timer_addr_w;
-wire [31:0] timer_wdata_w;
-wire [31:0] timer_rdata_w;
-wire  [1:0] timer_size_w;
-wire        timer_rd_w;
-wire        timer_wr_w;
-
-bus_mux bus_mux_i (
+bus_mux #(
+  .N(N_SLAVES)
+) bus_mux_i (
   .clk_i(clk_i),
   .reset_i(reset_i),
+
+  .ss_i({ mem_sel_w, uart_sel_w, gpio_sel_w, timer_sel_w }),
 
   .m_addr_i(daddr_w),
   .m_wdata_i(dwdata_w),
@@ -117,35 +107,12 @@ bus_mux bus_mux_i (
   .m_rd_i(drd_w),
   .m_wr_i(dwr_w),
 
-  .s0_addr_o(mem_addr_w),
-  .s0_wdata_o(mem_wdata_w),
-  .s0_rdata_i(mem_rdata_w),
-  .s0_size_o(mem_size_w),
-  .s0_rd_o(mem_rd_w),
-  .s0_wr_o(mem_wr_w),
-
-  .s1_addr_o(uart_addr_w),
-  .s1_wdata_o(uart_wdata_w),
-  .s1_rdata_i(uart_rdata_w),
-  .s1_size_o(uart_size_w),
-  .s1_rd_o(uart_rd_w),
-  .s1_wr_o(uart_wr_w),
-
-  .s2_addr_o(gpio_addr_w),
-  .s2_wdata_o(gpio_wdata_w),
-  .s2_rdata_i(gpio_rdata_w),
-  .s2_size_o(gpio_size_w),
-  .s2_rd_o(gpio_rd_w),
-  .s2_wr_o(gpio_wr_w),
-
-  .s3_addr_o(timer_addr_w),
-  .s3_wdata_o(timer_wdata_w),
-  .s3_rdata_i(timer_rdata_w),
-  .s3_size_o(timer_size_w),
-  .s3_rd_o(timer_rd_w),
-  .s3_wr_o(timer_wr_w),
-
-  .dummy_i(0)
+  .s_addr_o({ mem_addr_w, uart_addr_w, gpio_addr_w, timer_addr_w }),
+  .s_wdata_o({ mem_wdata_w, uart_wdata_w, gpio_wdata_w, timer_wdata_w }),
+  .s_rdata_i({ mem_rdata_w, uart_rdata_w, gpio_rdata_w, timer_rdata_w }),
+  .s_size_o({ mem_size_w, uart_size_w, gpio_size_w, timer_size_w }),
+  .s_rd_o({ mem_rd_w, uart_rd_w, gpio_rd_w, timer_rd_w }),
+  .s_wr_o({ mem_wr_w, uart_wr_w, gpio_wr_w, timer_wr_w })
 );
 
 //----------------------------------------------------------------------------
@@ -160,7 +127,7 @@ memory #(
   .irdata_o(irdata_w),
   .ird_i(ird_w),
 
-  .daddr_i({ 16'h0, mem_addr_w }),
+  .daddr_i(mem_addr_w),
   .dwdata_i(mem_wdata_w),
   .drdata_o(mem_rdata_w),
   .dsize_i(mem_size_w),

@@ -32,7 +32,7 @@ module per_timer (
   input         clk_i,
   input         reset_i,
 
-  input  [15:0] addr_i,
+  input  [31:0] addr_i,
   input  [31:0] wdata_i,
   output [31:0] rdata_o,
   input   [1:0] size_i,
@@ -42,9 +42,9 @@ module per_timer (
 
 //-----------------------------------------------------------------------------
 localparam
-  REG_CSR     = 16'h0000,
-  REG_COUNT   = 16'h0004,
-  REG_COMPARE = 16'h0008;
+  REG_CSR     = 8'h00,
+  REG_COUNT   = 8'h04,
+  REG_COMPARE = 8'h08;
 
 localparam
   BIT_CSR_ENABLE   = 0,
@@ -52,7 +52,9 @@ localparam
   BIT_CSR_OVERFLOW = 2;
 
 //-----------------------------------------------------------------------------
-wire csr_wr_w = wr_i && (REG_CSR == addr_i);
+wire reg_csr_w     = (REG_CSR     == addr_i[7:0]);
+wire reg_count_w   = (REG_COUNT   == addr_i[7:0]);
+wire reg_compare_w = (REG_COMPARE == addr_i[7:0]);
 
 //-----------------------------------------------------------------------------
 reg timer_enabled_r;
@@ -60,9 +62,9 @@ reg timer_enabled_r;
 always @(posedge clk_i) begin
   if (reset_i)
     timer_enabled_r <= 1'b0;
-  else if (csr_wr_w && wdata_i[BIT_CSR_ENABLE])
+  else if (wr_i && reg_csr_w && wdata_i[BIT_CSR_ENABLE])
     timer_enabled_r <= 1'b1;
-  else if (csr_wr_w && wdata_i[BIT_CSR_DISABLE])
+  else if (wr_i && reg_csr_w && wdata_i[BIT_CSR_DISABLE])
     timer_enabled_r <= 1'b0;
 end
 
@@ -72,7 +74,7 @@ reg timer_overflow_r;
 always @(posedge clk_i) begin
   if (reset_i)
     timer_overflow_r <= 1'b0;
-  else if (csr_wr_w && wdata_i[BIT_CSR_OVERFLOW])
+  else if (wr_i && reg_csr_w && wdata_i[BIT_CSR_OVERFLOW])
     timer_overflow_r <= 1'b0;
   else if (timer_overflow_w)
     timer_overflow_r <= 1'b1;
@@ -86,7 +88,7 @@ reg [31:0] timer_count_r;
 always @(posedge clk_i) begin
   if (reset_i)
     timer_count_r <= 32'h0;
-  else if (wr_i && (REG_COUNT == addr_i))
+  else if (wr_i && reg_count_w)
     timer_count_r <= wdata_i;
   else if (timer_overflow_w)
     timer_count_r <= 32'h0;
@@ -100,7 +102,7 @@ reg [31:0] timer_compare_r;
 always @(posedge clk_i) begin
   if (reset_i)
     timer_compare_r <= 32'h0;
-  else if (wr_i && (REG_COMPARE == addr_i))
+  else if (wr_i && reg_compare_w)
     timer_compare_r <= wdata_i;
 end
 

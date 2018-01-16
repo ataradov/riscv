@@ -32,7 +32,7 @@ module per_uart (
   input         clk_i,
   input         reset_i,
 
-  input  [15:0] addr_i,
+  input  [31:0] addr_i,
   input  [31:0] wdata_i,
   output [31:0] rdata_o,
   input   [1:0] size_i,
@@ -48,13 +48,18 @@ module per_uart (
 
 //-----------------------------------------------------------------------------
 localparam
-  REG_CSR  = 16'h0000,
-  REG_BR   = 16'h0004,
-  REG_DATA = 16'h0008;
+  REG_CSR  = 8'h00,
+  REG_BR   = 8'h04,
+  REG_DATA = 8'h08;
 
 localparam
   BIT_CSR_TX_READY  = 0,
   BIT_CSR_RX_READY  = 1;
+
+//-----------------------------------------------------------------------------
+wire reg_csr_w  = (REG_CSR  == addr_i[7:0]);
+wire reg_br_w   = (REG_BR   == addr_i[7:0]);
+wire reg_data_w = (REG_DATA == addr_i[7:0]);
 
 //-----------------------------------------------------------------------------
 reg [15:0] br_r;
@@ -62,14 +67,14 @@ reg [15:0] br_r;
 always @(posedge clk_i) begin
   if (reset_i)
     br_r <= 16'h0;
-  else if (wr_i && (REG_BR == addr_i))
+  else if (wr_i && reg_br_w)
     br_r <= wdata_i[15:0];
 end
 
 //-----------------------------------------------------------------------------
 `ifdef SIMULATOR
 always @(posedge clk_i) begin
-  if (wr_i && (REG_DATA == addr_i))
+  if (wr_i && reg_data_w)
     $write("%c", wdata_i[7:0]);
 end
 
@@ -98,7 +103,7 @@ always @(posedge clk_i) begin
     end
   end else if (!tx_ready_r) begin
     tx_ready_r <= 1'b1;
-  end else if (wr_i && (REG_DATA == addr_i)) begin
+  end else if (wr_i && reg_data_w) begin
     tx_shifter_r <= { 1'b1, wdata_i[7:0], 1'b0 };
     tx_bit_cnt_r <= 4'd10;
     tx_ready_r   <= 1'b0;
@@ -153,7 +158,7 @@ always @(posedge clk_i) begin
     rx_ready_r <= 1'b0;
   else if (rx_done_r)
     rx_ready_r <= 1'b1;
-  else if (rd_i && (REG_DATA == addr_i))
+  else if (rd_i && reg_data_w)
     rx_ready_r <= 1'b0;
 end
 
@@ -163,7 +168,7 @@ reg [31:0] reg_data_r;
 always @(posedge clk_i) begin
   if (reset_i)
     reg_data_r <= csr_w;
-  else if (REG_DATA == addr_i)
+  else if (reg_data_w)
     reg_data_r <= { 24'h0, rx_data_r };
   else
     reg_data_r <= csr_w;
