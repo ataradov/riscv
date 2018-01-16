@@ -59,10 +59,17 @@ assign s_rd_o    = {N{m_rd_i}} & ss_i;
 assign s_wr_o    = {N{m_wr_i}} & ss_i;
 
 genvar i;
+wire [31:0] rdata_w [N-1:0];
+
 generate for (i = 0; i < N; i = i + 1) begin: rdata_mux
-  assign m_rdata_o = ss_r[i] ? s_rdata_i[32*i+31:32*i] : 32'hz;
+  if (0 == i)
+    assign rdata_w[i] = {32{ss_r[i]}} & s_rdata_i[32*i+31:32*i];
+  else
+    assign rdata_w[i] = rdata_w[i-1] | {32{ss_r[i]}} & s_rdata_i[32*i+31:32*i];
 end
 endgenerate
+
+assign m_rdata_o = rdata_w[N - 1];
 
 //-----------------------------------------------------------------------------
 reg [N-1:0] ss_r;
