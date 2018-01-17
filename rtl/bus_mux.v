@@ -60,12 +60,9 @@ assign s_wr_o    = {N{m_wr_i}} & ss_i;
 
 genvar i;
 wire [31:0] rdata_w [N-1:0];
-
 generate for (i = 0; i < N; i = i + 1) begin: rdata_mux
-  if (0 == i)
-    assign rdata_w[i] = {32{ss_r[i]}} & s_rdata_i[32*i+31:32*i];
-  else
-    assign rdata_w[i] = rdata_w[i-1] | {32{ss_r[i]}} & s_rdata_i[32*i+31:32*i];
+  wire [31:0] part_w = {32{ss_r[i]}} & s_rdata_i[32*i+31:32*i];
+  assign rdata_w[i] = (0 == i) ? part_w : rdata_w[i-1] | part_w;
 end
 endgenerate
 
