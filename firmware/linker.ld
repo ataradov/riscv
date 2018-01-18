@@ -12,7 +12,7 @@ SECTIONS
 {
   .text : ALIGN(4)
   {
-    *(.text.entry)
+    *(.entry)
     *(.text*)
     . = ALIGN(4);
   } > mem
@@ -26,6 +26,15 @@ SECTIONS
 
   . = ALIGN(4);
   _etext = .;
+
+  .data : ALIGN(4)
+  {
+    *(.data)
+    *(.data.*)
+    *(.sdata)
+    *(.sdata.*)
+    . = ALIGN(4);
+  } > mem
 
   .bss : ALIGN(4)
   {
