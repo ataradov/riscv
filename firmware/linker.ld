@@ -12,7 +12,7 @@ SECTIONS
 {
   .text : ALIGN(4)
   {
-    *(.entry)
+    *(.text.entry)
     *(.text*)
     . = ALIGN(4);
   } > mem
