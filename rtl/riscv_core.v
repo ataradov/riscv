@@ -753,21 +753,21 @@ reg [31:0] ex_alu_res_w;
 
 always @(*) begin
   case (id_alu_op_r)
-    ALU_ADD  : ex_alu_res_w <= adder_out_w;
-    ALU_SUB  : ex_alu_res_w <= adder_out_w;
-    ALU_AND  : ex_alu_res_w <= id_ra_value_r & alu_opb_w;
-    ALU_OR   : ex_alu_res_w <= id_ra_value_r | alu_opb_w;
-    ALU_XOR  : ex_alu_res_w <= id_ra_value_r ^ alu_opb_w;
-    ALU_SLT  : ex_alu_res_w <= (adder_n_w != adder_v_w) ? 32'h1 : 32'h0;
-    ALU_SLTU : ex_alu_res_w <= (adder_c_w == 1'b0) ? 32'h1 : 32'h0;
-    ALU_SHL  : ex_alu_res_w <= sh_left_w;
-    ALU_SHR  : ex_alu_res_w <= sh_right_w;
-    ALU_MULL : ex_alu_res_w <= mul_res_w[31:0];
-    ALU_MULH : ex_alu_res_w <= mul_res_w[63:32];
-    ALU_DIV  : ex_alu_res_w <= div_quotient_w;
-    ALU_REM  : ex_alu_res_w <= div_remainder_w;
-    ALU_NPC  : ex_alu_res_w <= id_next_pc_r;
-    default  : ex_alu_res_w <= 32'h0;
+    ALU_ADD  : ex_alu_res_w = adder_out_w;
+    ALU_SUB  : ex_alu_res_w = adder_out_w;
+    ALU_AND  : ex_alu_res_w = id_ra_value_r & alu_opb_w;
+    ALU_OR   : ex_alu_res_w = id_ra_value_r | alu_opb_w;
+    ALU_XOR  : ex_alu_res_w = id_ra_value_r ^ alu_opb_w;
+    ALU_SLT  : ex_alu_res_w = (adder_n_w != adder_v_w) ? 32'h1 : 32'h0;
+    ALU_SLTU : ex_alu_res_w = (adder_c_w == 1'b0) ? 32'h1 : 32'h0;
+    ALU_SHL  : ex_alu_res_w = sh_left_w;
+    ALU_SHR  : ex_alu_res_w = sh_right_w;
+    ALU_MULL : ex_alu_res_w = mul_res_w[31:0];
+    ALU_MULH : ex_alu_res_w = mul_res_w[63:32];
+    ALU_DIV  : ex_alu_res_w = div_quotient_w;
+    ALU_REM  : ex_alu_res_w = div_remainder_w;
+    ALU_NPC  : ex_alu_res_w = id_next_pc_r;
+    default  : ex_alu_res_w = 32'h0;
   endcase
 end
 
