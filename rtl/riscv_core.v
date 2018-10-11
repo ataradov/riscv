@@ -85,7 +85,8 @@ localparam
   ALU_MULH  = 4'd10,
   ALU_DIV   = 4'd11,
   ALU_REM   = 4'd12,
-  ALU_NPC   = 4'd13;
+  ALU_NPC   = 4'd13,
+  ALU_AUIPC = 4'd14;
 
 localparam
   BR_NONE   = 3'd0,
@@ -452,7 +453,7 @@ wire [4:0] id_ra_index_w = (lui_w || auipc_w || jal_w)     ? 5'd0 : ra_w;
 wire [4:0] id_rb_index_w = (load_w || jump_w || alu_imm_w) ? 5'd0 : rb_w;
 
 wire [3:0] id_alu_op_w =
-    (add_w || addi_w || lui_w || auipc_w || load_w || store_w) ? ALU_ADD :
+    (add_w || addi_w || lui_w || load_w || store_w) ? ALU_ADD :
     (andi_w || and_w)                    ? ALU_AND :
     (ori_w || or_w)                      ? ALU_OR :
     (xori_w || xor_w)                    ? ALU_XOR :
@@ -464,7 +465,8 @@ wire [3:0] id_alu_op_w =
     (mul_w)                              ? ALU_MULL :
     (div_w || divu_w)                    ? ALU_DIV :
     (rem_w || remu_w)                    ? ALU_REM :
-    (jal_w || jalr_w)                    ? ALU_NPC : ALU_SUB;
+    (jal_w || jalr_w)                    ? ALU_NPC :
+    (auipc_w)                            ? ALU_AUIPC : ALU_SUB;
 
 wire [2:0] id_branch_w =
     beq_w  ? BR_EQ :
@@ -753,21 +755,22 @@ reg [31:0] ex_alu_res_w;
 
 always @(*) begin
   case (id_alu_op_r)
-    ALU_ADD  : ex_alu_res_w = adder_out_w;
-    ALU_SUB  : ex_alu_res_w = adder_out_w;
-    ALU_AND  : ex_alu_res_w = id_ra_value_r & alu_opb_w;
-    ALU_OR   : ex_alu_res_w = id_ra_value_r | alu_opb_w;
-    ALU_XOR  : ex_alu_res_w = id_ra_value_r ^ alu_opb_w;
-    ALU_SLT  : ex_alu_res_w = (adder_n_w != adder_v_w) ? 32'h1 : 32'h0;
-    ALU_SLTU : ex_alu_res_w = (adder_c_w == 1'b0) ? 32'h1 : 32'h0;
-    ALU_SHL  : ex_alu_res_w = sh_left_w;
-    ALU_SHR  : ex_alu_res_w = sh_right_w;
-    ALU_MULL : ex_alu_res_w = mul_res_w[31:0];
-    ALU_MULH : ex_alu_res_w = mul_res_w[63:32];
-    ALU_DIV  : ex_alu_res_w = div_quotient_w;
-    ALU_REM  : ex_alu_res_w = div_remainder_w;
-    ALU_NPC  : ex_alu_res_w = id_next_pc_r;
-    default  : ex_alu_res_w = 32'h0;
+    ALU_ADD   : ex_alu_res_w = adder_out_w;
+    ALU_SUB   : ex_alu_res_w = adder_out_w;
+    ALU_AND   : ex_alu_res_w = id_ra_value_r & alu_opb_w;
+    ALU_OR    : ex_alu_res_w = id_ra_value_r | alu_opb_w;
+    ALU_XOR   : ex_alu_res_w = id_ra_value_r ^ alu_opb_w;
+    ALU_SLT   : ex_alu_res_w = (adder_n_w != adder_v_w) ? 32'h1 : 32'h0;
+    ALU_SLTU  : ex_alu_res_w = (adder_c_w == 1'b0) ? 32'h1 : 32'h0;
+    ALU_SHL   : ex_alu_res_w = sh_left_w;
+    ALU_SHR   : ex_alu_res_w = sh_right_w;
+    ALU_MULL  : ex_alu_res_w = mul_res_w[31:0];
+    ALU_MULH  : ex_alu_res_w = mul_res_w[63:32];
+    ALU_DIV   : ex_alu_res_w = div_quotient_w;
+    ALU_REM   : ex_alu_res_w = div_remainder_w;
+    ALU_NPC   : ex_alu_res_w = id_next_pc_r;
+    ALU_AUIPC : ex_alu_res_w = jump_addr_w;
+    default   : ex_alu_res_w = 32'h0;
   endcase
 end
 

@@ -558,6 +558,41 @@ void test_hw_sw_shift(void)
 }
 
 //-----------------------------------------------------------------------------
+void test_auipc(void)
+{
+  uint32_t pc, res;
+
+  iputs("\r\nAUIPC:\r\n");
+
+  iprintf("  imm = 0x0\r\n");
+
+  asm(
+    "jal %0, 1f \n\t"
+    "1: \n\t"
+    "auipc %1, 0x0 \n\t"
+    : "=r"(pc), "=r"(res) : : );
+  assert(res == pc, "AUIPC error 0: pc = 0x%08x, res = 0x%08x\r\n", pc, res);
+
+  iprintf("  imm = 0x12345\r\n");
+
+  asm(
+    "jal %0, 1f \n\t"
+    "1: \n\t"
+    "auipc %1, 0x12345 \n\t"
+    : "=r"(pc), "=r"(res) : : );
+  assert(res == pc + 0x12345000, "AUIPC error 1: pc = 0x%08x, res = 0x%08x\r\n", pc, res);
+
+  iprintf("  imm = 0xfffff\r\n");
+
+  asm(
+    "jal %0, 1f \n\t"
+    "1: \n\t"
+    "auipc %1, 0xfffff \n\t"
+    : "=r"(pc), "=r"(res) : : );
+  assert(res == pc + 0xfffff000, "AUIPC error 2: pc = 0x%08x, res = 0x%08x\r\n", pc, res);
+}
+
+//-----------------------------------------------------------------------------
 void timer_init(int interval_us)
 {
   TIMER->COUNT = 0;
@@ -636,6 +671,7 @@ int main(void)
   test_hw_sw_div();
   test_hw_sw_mul();
   test_hw_sw_shift();
+  test_auipc();
 
   iputs("\r\nAll tests PASSED.\r\n");
 
